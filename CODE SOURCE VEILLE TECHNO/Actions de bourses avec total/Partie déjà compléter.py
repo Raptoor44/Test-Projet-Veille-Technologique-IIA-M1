@@ -3,26 +3,24 @@ import tensorflow as tf
 from collections import deque
 import random
 
-
 # Définir l'environnement de simulation (données historiques sur Total)
 class Environment:
-    def __init__(self):
-        # Initialisation des données historiques sur Total (p. ex. prix des actions)
-        self.total_data = np.random.rand(100) * 100  # Prix aléatoires pour l'exemple
-        self.current_index = 0
+    def __init__(self, companies_data):
+        self.companies_data = companies_data
+        self.num_companies = len(companies_data)
+        self.current_index = np.zeros(self.num_companies, dtype=int)
 
     def get_state(self):
-        # Retourner l'état actuel de l'environnement (p. ex. prix actuel de l'action)
-        return self.total_data[self.current_index]
+        # Retourner l'état actuel de l'environnement pour chaque entreprise
+        return [self.companies_data[i][self.current_index[i]] for i in range(self.num_companies)]
 
-    def take_action(self, action):
-        # Exécuter l'action de l'agent sur l'environnement (p. ex. acheter ou vendre des actions)
-        pass  # À remplacer par la logique appropriée
+    def take_action(self, action, company_index):
+        # Exécuter l'action de l'agent sur l'environnement pour une entreprise donnée
+        pass  # À remplacer par la logique appropriée pour l'entreprise spécifique
 
-    def get_reward(self):
-        # Calculer la récompense pour l'action de l'agent (p. ex. bénéfice réalisé)
+    def get_reward(self, company_index):
+        # Calculer la récompense pour l'action de l'agent sur une entreprise donnée
         return np.random.randn()  # Récompense aléatoire pour l'exemple
-
 
 # Définir l'agent utilisant un réseau de neurones pour l'apprentissage
 class DQNAgent:
@@ -63,38 +61,44 @@ class DQNAgent:
         return action
 
     def train(self, batch_size):
-            # Entraîner l'agent en utilisant l'algorithme DQN
-            minibatch = random.sample(self.memory, batch_size)
-            for state, action, reward, next_state, done in minibatch:
-                target = reward
-                if not done:
-                    target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
-                target_f = self.model.predict(state)
-                target_f[0][action] = target
-                self.model.fit(state, target_f, epochs=1, verbose=0)
+        # Entraîner l'agent en utilisant l'algorithme DQN
+        minibatch = random.sample(self.memory, batch_size)
+        for state, action, reward, next_state, done in minibatch:
+            target = reward
+            if not done:
+                target = reward + self.gamma * np.amax(self.model.predict(next_state)[0])
+            target_f = self.model.predict(state)
+            target_f[0][action] = target
+            self.model.fit(state, target_f, epochs=1, verbose=0)
             if self.epsilon > self.epsilon_min:
                 self.epsilon *= self.epsilon_decay
 
-    # Paramètres de l'agent et de l'environnement
+# Paramètres de l'agent et de l'environnement
 state_size = 1  # Dimension de l'état (p. ex. prix actuel de l'action)
 action_size = 3  # Nombre d'actions possibles (p. ex. acheter, vendre, ne rien faire)
 batch_size = 32  # Taille du lot pour l'entraînement de l'agent
 total_reward = 0  # Initialiser le gain total
-# Créer l'environnement et l'agent
-env = Environment()
+
+# Créer l'environnement
+companies_data = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]  # Exemple de données pour trois entreprises
+env = Environment(companies_data)
+
 agent = DQNAgent(state_size, action_size)
 # Entraînement de l'agent
 num_episodes = 10  # Nombre d'épisodes d'entraînement
 for episode in range(num_episodes):
-    state = env.get_state().reshape(1, state_size)  # Obtenir l'état initial de l'environnement
+    state = np.array(env.get_state()).reshape(1, state_size)  # Obtenir l'état initial de l'environnement
     print("Début de l'épisode", episode)
     for time in range(100):  # Limite de 100 pas de temps par épisode
         print("Pas de temps", time)
         action = agent.act(state)  # L'agent prend une action
         print("Action choisie par l'agent:", action)
-        env.take_action(action)  # L'action est appliquée à l'environnement
-        next_state = env.get_state().reshape(1, state_size)  # Obtenir le nouvel état de l'environnement
-        reward = env.get_reward()  # Obtenir la récompense pour l'action
+        env.take_action(action,
+                        company_index=0)  # L'action est appliquée à l'environnement (exemple avec company_index=0)
+        next_state = np.array(env.get_state()).reshape(1,
+                                                       state_size)  # Obtenir le nouvel état de l'environnement
+        reward = env.get_reward(
+            company_index=0)  # Obtenir la récompense pour l'action (exemple avec company_index=0)
         total_reward += reward  # Ajouter la récompense à la somme totale
         print("Récompense pour l'action:", reward)
         done = False  # Indicateur pour déterminer si l'épisode est terminé
@@ -106,6 +110,3 @@ for episode in range(num_episodes):
             break
         if len(agent.memory) > batch_size:
             agent.train(batch_size)
-
-# Évaluation de l'agent
-# Pour évaluer l'agent, vous pouvez ajouter une logique similaire à l'entraînement, mais sans entraîner l'agent.
